@@ -9,22 +9,22 @@ const cards = [
   {
     scenario: "Dimenticare di preparare un esame importante",
     image: "img/forgot_exam.jpg",
-    luck_index: 7.0,
+    luck_index: 2.0,
   },
   {
     scenario: "Essere inseguiti da un mostro invisibile",
     image: "img/invisible_monster.jpg",
-    luck_index: 2.5,
+    luck_index: 3.0,
   },
   {
     scenario: "Perdere l'autobus e arrivare tardi",
     image: "img/missed_bus.jpg",
-    luck_index: 3.5,
+    luck_index: 4.0,
   },
   {
     scenario: "Dimenticare la password del telefono",
     image: "img/forgot_password.jpg",
-    luck_index: 19.5,
+    luck_index: 5.0,
   },
   {
     scenario: "Essere bloccati in ascensore",
@@ -34,12 +34,12 @@ const cards = [
   {
     scenario: "Parlare in pubblico e dimenticare cosa dire",
     image: "img/public_speaking.jpg",
-    luck_index: 4.5,
+    luck_index: 7.0,
   },
   {
     scenario: "Dimenticare il portafoglio a casa",
     image: "img/forgot_wallet.jpg",
-    luck_index: 14.5,
+    luck_index: 8.0,
   },
   {
     scenario: "Scordarsi il compleanno di un amico importante",
@@ -54,7 +54,7 @@ const cards = [
   {
     scenario: "Essere inseguiti da un cane feroce",
     image: "img/chasing_dog.jpg",
-    luck_index: 31.5,
+    luck_index: 11.0,
   },
   {
     scenario: "Essere nudi in pubblico",
@@ -69,22 +69,22 @@ const cards = [
   {
     scenario: "Perdere il controllo della macchina",
     image: "img/lost_control_car.jpg",
-    luck_index: 74.0,
+    luck_index: 14.0,
   },
   {
     scenario: "Essere in ritardo a un appuntamento cruciale",
     image: "img/late_appointment.jpg",
-    luck_index: 85.0,
+    luck_index: 15.0,
   },
   {
     scenario: "Non riuscire a muovere le gambe",
     image: "img/can't_move_legs.jpg",
-    luck_index: 16.5,
+    luck_index: 16.0,
   },
   {
     scenario: "Essere intrappolati in un labirinto senza uscita",
     image: "img/labyrinth.jpg",
-    luck_index: 97.5,
+    luck_index: 17.0,
   },
   {
     scenario: "Dimenticare come parlare",
@@ -99,7 +99,7 @@ const cards = [
   {
     scenario: "Essere inseguiti da un insetto gigante",
     image: "img/giant_bug.jpg",
-    luck_index: 26.5,
+    luck_index: 20.0,
   },
   {
     scenario: "Perdere la voce proprio durante una presentazione",
@@ -260,51 +260,27 @@ export default async function initializeDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, 
         scenario TEXT UNIQUE NOT NULL, image TEXT NOT NULL, 
         luck_index REAL UNIQUE NOT NULL
-      ) STRICT;`,
-      (err) => {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
-  await new Promise((resolve, reject) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS USERS (
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS USERS (
         id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, 
         username TEXT UNIQUE NOT NULL, 
         password TEXT NOT NULL
-      ) STRICT;`,
-      (err) => {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
-  await new Promise((resolve, reject) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS MATCHES (
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS MATCHES (
         id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, 
         user_id INTEGER NOT NULL REFERENCES USERS(id), 
         timestamp TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP), 
         match_status TEXT NOT NULL, 
-        FOREIGN KEY(user_id) REFERENCES USERS(id)
-      ) STRICT;`,
-      (err) => {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
-  await new Promise((resolve, reject) => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS GAME_CARDS (
+          FOREIGN KEY(user) REFERENCES USERS(id)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS GAME_CARDS (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         card_id INTEGER NOT NULL REFERENCES CARDS(id), 
         match_id INTEGER NOT NULL REFERENCES MATCHES(id), 
         round INTEGER NOT NULL, 
         card_status TEXT, 
-        FOREIGN KEY (card_id) REFERENCES CARDS(id),
-        FOREIGN KEY (match_id) REFERENCES MATCHES(id)
+          FOREIGN KEY (card_id) REFERENCES CARDS(id)
+          FOREIGN KEY (match_id) REFERENCES MATCHES(id)
       ) STRICT;`,
       (err) => {
         if (err) reject(err);
@@ -312,10 +288,8 @@ export default async function initializeDatabase() {
       }
     );
   });
-  await initializeCards();
-  await initializeUsers();
-  await initializeMatches();
-  await initializeGameCards();
+  initializeCards();
+  initializeUsers();
 }
 async function initializeCards() {
   return new Promise((resolve, reject) => {
@@ -371,93 +345,6 @@ async function initializeUsers() {
         if (err) reject(err);
         else {
           console.log("Utenti di default inseriti");
-          resolve();
-        }
-      });
-    });
-  });
-}
-
-async function initializeMatches() {
-  const matches = [
-    { user_id: 1, timestamp: "2025-06-08 18:50:57", status: "WON" },
-    { user_id: 1, timestamp: "2025-06-07 16:30:22", status: "WON" },
-    { user_id: 1, timestamp: "2024-03-18 07:05:54", status: "LOST" },
-  ];
-
-  return new Promise((resolve, reject) => {
-    db.get("SELECT COUNT(*) AS count FROM MATCHES", (err, row) => {
-      if (err) return reject(err);
-
-      if (row.count > 1) {
-        console.log("Match già inizializzati");
-        return resolve();
-      }
-
-      const stmt = db.prepare(
-        "INSERT INTO MATCHES (user_id, timestamp, match_status) VALUES (?, ?, ?)"
-      );
-      for (const match of matches) {
-        stmt.run(match.user_id, match.timestamp, match.status);
-      }
-      stmt.finalize((err) => {
-        if (err) reject(err);
-        else {
-          console.log("Match di default inseriti");
-          resolve();
-        }
-      });
-    });
-  });
-}
-
-async function initializeGameCards() {
-  const cards = [
-    //match 1, vinto
-    { card_id: 1, match_id: 1, round: 0, card_status: "INITIAL" },
-    { card_id: 2, match_id: 1, round: 0, card_status: "INITIAL" },
-    { card_id: 3, match_id: 1, round: 0, card_status: "INITIAL" },
-    { card_id: 4, match_id: 1, round: 1, card_status: "WON" },
-    { card_id: 5, match_id: 1, round: 2, card_status: "WON" },
-    { card_id: 6, match_id: 1, round: 3, card_status: "WON" },
-
-    // match 2, vinto
-    { card_id: 7, match_id: 2, round: 0, card_status: "INITIAL" },
-    { card_id: 8, match_id: 2, round: 0, card_status: "INITIAL" },
-    { card_id: 9, match_id: 2, round: 0, card_status: "INITIAL" },
-    { card_id: 10, match_id: 2, round: 1, card_status: "LOST" },
-    { card_id: 11, match_id: 2, round: 2, card_status: "WON" },
-    { card_id: 12, match_id: 2, round: 3, card_status: "WON" },
-    { card_id: 13, match_id: 2, round: 4, card_status: "WON" },
-
-    //match 3, perso
-    { card_id: 14, match_id: 3, round: 0, card_status: "INITIAL" },
-    { card_id: 15, match_id: 3, round: 0, card_status: "INITIAL" },
-    { card_id: 16, match_id: 3, round: 0, card_status: "INITIAL" },
-    { card_id: 17, match_id: 3, round: 1, card_status: "LOST" },
-    { card_id: 18, match_id: 3, round: 1, card_status: "LOST" },
-    { card_id: 19, match_id: 3, round: 3, card_status: "LOST" },
-  ];
-
-  return new Promise((resolve, reject) => {
-    db.get("SELECT COUNT(*) AS count FROM GAME_CARDS", (err, row) => {
-      if (err) return reject(err);
-
-      if (row.count > 1) {
-        console.log("Game_cards già inizializzate");
-        return resolve();
-      }
-
-      const stmt = db.prepare(
-        "INSERT INTO GAME_CARDS (card_id, match_id, round, card_status) VALUES (?, ?, ?, ?)"
-      );
-      for (const card of cards) {
-        stmt.run(card.card_id, card.match_id, card.round, card.card_status);
-      }
-      stmt.finalize((err) => {
-        if (err) reject(err);
-        else {
-          console.log("Game_cards di default inserite");
           resolve();
         }
       });
