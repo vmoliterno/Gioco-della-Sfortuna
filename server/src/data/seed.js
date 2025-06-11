@@ -1,4 +1,5 @@
 import db from "./db.js";
+import crypto from "crypto";
 
 const cards = [
   {
@@ -272,7 +273,8 @@ export default async function initializeDatabase() {
       `CREATE TABLE IF NOT EXISTS USERS (
         id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, 
         username TEXT UNIQUE NOT NULL, 
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        salt TEXT NOT NULL
       ) STRICT;`,
       (err) => {
         if (err) reject(err);
@@ -353,7 +355,7 @@ async function initializeUsers() {
   ];
 
   return new Promise((resolve, reject) => {
-    db.get("SELECT COUNT(*) AS count FROM USERS", (err, row) => {
+    db.get("SELECT COUNT(*) AS count FROM USERS", async (err, row) => {
       if (err) return reject(err);
 
       if (row.count > 1) {
@@ -362,15 +364,28 @@ async function initializeUsers() {
       }
 
       const stmt = db.prepare(
-        "INSERT INTO USERS (username, password) VALUES (?, ?)"
+        "INSERT INTO USERS (username, password, salt) VALUES (?, ?, ?)"
       );
+
       for (const user of users) {
-        stmt.run(user.username, user.password);
+        const salt = crypto.randomBytes(16).toString("hex");
+
+        await new Promise((res, rej) => {
+          crypto.scrypt(user.password, salt, 16, (err, derivedKey) => {
+            if (err) return rej(err);
+            const hashedPassword = derivedKey.toString("hex");
+            stmt.run(user.username, hashedPassword, salt, (err) => {
+              if (err) rej(err);
+              else res();
+            });
+          });
+        });
       }
+
       stmt.finalize((err) => {
         if (err) reject(err);
         else {
-          console.log("Utenti di default inseriti");
+          console.log("Utenti di default inseriti con password hash e salt");
           resolve();
         }
       });

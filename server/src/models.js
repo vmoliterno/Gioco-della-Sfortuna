@@ -81,16 +81,12 @@ class Card {
  * @method toJSON - Returns a JSON representation of the user, excluding the password.
  */
 class User {
-  #password;
-  constructor(id, username, password, matches) {
+  constructor(id, username, matches = []) {
     this.id = id;
     this.username = username;
-    this.#password = password;
     this.matches = matches;
     // methods
-    this.isCorrectPassword = (pass) => {
-      pass === this.#password ? true : false;
-    };
+
     this.toJSON = () => {
       return {
         username: this.username,
@@ -127,28 +123,25 @@ class Match {
     // methods
     this.toJSON = () => {
       return {
-        username: this.username,
         timestamp: this.timestamp,
         status: this.status,
-        gamecards: this.gamecards.map((card) => {
-          card.toJSON();
-        }),
+        gamecards: this.gamecards.map((card) => card.toJSON()),
       };
     };
 
     // evaluates if the match is WON, LOST or ONGOING after every card placed
     this.outcome = () => {
       if (
-        this.gamecards.filter((card) => card.status === MatchStatus.WON)
+        this.gamecards.filter((card) => card.status === CardStatus.WON)
           .length >= 3
       )
         return MatchStatus.WON;
-      else if (
-        this.gamecards.filter((card) => card.status === MatchStatus.LOST)
+      if (
+        this.gamecards.filter((card) => card.status === CardStatus.LOST)
           .length >= 3
       )
         return MatchStatus.LOST;
-      else return MatchStatus.ONGOING;
+      return MatchStatus.ONGOING;
     };
   }
 }
@@ -174,16 +167,10 @@ class Game_card {
 
     this.toJSON = () => {
       return {
-        card: this.card.toJSON(),
-        match_id: this.match_id,
+        card: this.card.scenario,
         round: this.round,
         status: this.status,
-        id: this.id,
       };
-    };
-    // forse da togliere perchè compreso nel toJSON
-    this.getLuckIndex = () => {
-      return this.card.getLuckIndex();
     };
   }
 }
