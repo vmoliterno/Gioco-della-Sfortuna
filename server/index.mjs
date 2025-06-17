@@ -62,6 +62,14 @@ const isLoggedIn = (req, res, next) => {
   }
   return res.status(401).json({ error: "Not authorized" });
 };
+//validation middleware
+const handleValidation = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
+  }
+  next();
+};
 
 app.use(
   session({
@@ -80,21 +88,26 @@ app.post("/api/sessions", passport.authenticate("local"), (req, res) => {
 });
 
 // GET /api/v1/matches
-app.get("/api/v1/matches", isLoggedIn, async (req, res) => {
-  try {
-    const username = req.user.username;
-    const matches = await dao.getMatches(username);
-    for (const match of matches) {
-      const cards = await dao.getGameCards(match.id);
-      match.gamecards = cards;
-    }
+app.get(
+  "/api/v1/matches",
+  isLoggedIn,
+  [check("username").isString().notEmpty().withMessage("Username is required")],
+  async (req, res) => {
+    try {
+      const username = req.user.username;
+      const matches = await dao.getMatches(username);
+      for (const match of matches) {
+        const cards = await dao.getGameCards(match.id);
+        match.gamecards = cards;
+      }
 
-    res.status(200).json(matches.map((m) => m.toJSON()));
-  } catch (err) {
-    console.error("Errore durante il recupero delle partite:", err);
-    res.status(500).json({ error: "Errore interno del server" });
+      res.status(200).json(matches.map((m) => m.toJSON()));
+    } catch (err) {
+      console.error("Errore durante il recupero delle partite:", err);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
   }
-});
+);
 
 // POST /api/v1/matches/end
 app.post("/api/v1/matches/end", isLoggedIn, async (req, res) => {
@@ -168,73 +181,89 @@ app.get("/api/v1/round/next", isLoggedIn, async (req, res) => {
 });
 
 // POST /api/v1/round/guess
-app.post("/api/v1/round/guess", isLoggedIn, async (req, res) => {
-  const { match } = req.session;
-  const { position } = req.body;
+app.post(
+  "/api/v1/round/guess",
+  [
+    body("position")
+      .notEmpty()
+      .withMessage("La posizione è obbligatoria")
+      .isInt({ min: 0, max: 5 })
+      .withMessage("La posizione deve essere un numero valido tra 0 e 5"),
+  ],
+  handleValidation,
+  isLoggedIn,
+  async (req, res) => {
+    const { match } = req.session;
+    const { position } = req.body;
 
-  if (!match || match.status !== MatchStatus.ONGOING)
-    return res
-      .status(400)
-      .json({ error: "Partita non inizializzata o già conclusa" });
+    if (!match || match.status !== MatchStatus.ONGOING)
+      return res
+        .status(400)
+        .json({ error: "Partita non inizializzata o già conclusa" });
 
-  const round = match.round;
-  const cardId = match.cardIds[3 + round];
-  if (!cardId)
-    return res
-      .status(400)
-      .json({ error: "Carta non disponibile per questo round" });
+    const round = match.round;
+    const cardId = match.cardIds[3 + round];
+    if (!cardId)
+      return res
+        .status(400)
+        .json({ error: "Carta non disponibile per questo round" });
 
-  const card = await dao.getCard(cardId);
+    const card = await dao.getCard(cardId);
 
-  const ownedCards = await dao.getCards(match.gamecards.map((c) => c.cardId));
-  const sorted = sortCardsByLuckIndex(ownedCards);
+    const ownedCards = await dao.getCards(
+      match.gamecards
+        .filter((c) => c.status !== CardStatus.LOST)
+        .map((c) => c.cardId)
+    );
+    const sorted = sortCardsByLuckIndex(ownedCards);
 
-  let correct;
-  if (position < 0 || position > sorted.length) {
-    return res.status(400).json({ error: "Posizione non valida" });
-  } else if (position === 0) {
-    correct = card.isLessThan(sorted[position]);
-  } else if (position === sorted.length) {
-    correct = card.isGreaterThan(sorted[position - 1]);
-  } else {
-    correct = card.isBetween(sorted[position - 1], sorted[position]);
-  }
+    let correct;
+    if (position < 0 || position > sorted.length) {
+      return res.status(400).json({ error: "Posizione non valida" });
+    } else if (position === 0) {
+      correct = card.isLessThan(sorted[position]);
+    } else if (position === sorted.length) {
+      correct = card.isGreaterThan(sorted[position - 1]);
+    } else {
+      correct = card.isBetween(sorted[position - 1], sorted[position]);
+    }
 
-  match.gamecards.push({
-    cardId: cardId,
-    round: round,
-    status: correct ? CardStatus.WON : CardStatus.LOST,
-  });
-  match.round++;
+    match.gamecards.push({
+      cardId: cardId,
+      round: round,
+      status: correct ? CardStatus.WON : CardStatus.LOST,
+    });
+    match.round++;
 
-  const myMatch = new Match(
-    req.user.username,
-    match.timestamp,
-    match.status,
-    match.gamecards.map(
-      (c) =>
-        new Game_card(new Card("", "", 0, c.cardId), null, c.round, c.status)
-    )
-  );
-
-  match.status = myMatch.outcome();
-
-  res.status(200).json({
-    correct: correct,
-    matchStatus: match.status,
-    round: match.round,
-    hand: await dao
-      .getCards(
-        match.gamecards
-          .filter(
-            (c) =>
-              c.status === CardStatus.INITIAL || c.status === CardStatus.WON
-          )
-          .map((c) => c.cardId)
+    const myMatch = new Match(
+      req.user.username,
+      match.timestamp,
+      match.status,
+      match.gamecards.map(
+        (c) =>
+          new Game_card(new Card("", "", 0, c.cardId), null, c.round, c.status)
       )
-      .then((c) => sortCardsByLuckIndex(c).map((c) => c.toJSON())),
-  });
-});
+    );
+
+    match.status = myMatch.outcome();
+
+    res.status(200).json({
+      correct: correct,
+      matchStatus: match.status,
+      round: match.round,
+      hand: await dao
+        .getCards(
+          match.gamecards
+            .filter(
+              (c) =>
+                c.status === CardStatus.INITIAL || c.status === CardStatus.WON
+            )
+            .map((c) => c.cardId)
+        )
+        .then((c) => sortCardsByLuckIndex(c).map((c) => c.toJSON())),
+    });
+  }
+);
 
 // GET /api/v1/matches/demo/start
 app.get("/api/v1/demo/start", async (req, res) => {
@@ -265,42 +294,53 @@ app.get("/api/v1/demo/next", async (req, res) => {
 // POST /api/v1/matches/demo/guess
 import { sortCardsByLuckIndex } from "./src/utils.js";
 
-app.post("/api/v1/demo/guess", async (req, res) => {
-  const { position } = req.body;
-  const demo = req.session.demo;
+app.post(
+  "/api/v1/demo/guess",
+  [
+    body("position")
+      .notEmpty()
+      .withMessage("La posizione è obbligatoria")
+      .isInt({ min: 0, max: 3 })
+      .withMessage("La posizione deve essere un numero valido tra 0 e 3"),
+  ],
+  handleValidation,
+  async (req, res) => {
+    const { position } = req.body;
+    const demo = req.session.demo;
 
-  if (!demo)
-    return res.status(400).json({ error: "Partita demo non inizializzata" });
+    if (!demo)
+      return res.status(400).json({ error: "Partita demo non inizializzata" });
 
-  const guessCard = await dao.getCard(demo.guessCardId);
-  const initialCards = await dao.getCards(demo.cardIds.slice(0, 3));
-  const sorted = sortCardsByLuckIndex(initialCards);
+    const guessCard = await dao.getCard(demo.guessCardId);
+    const initialCards = await dao.getCards(demo.cardIds.slice(0, 3));
+    const sorted = sortCardsByLuckIndex(initialCards);
 
-  if (position < 0 || position > sorted.length)
-    return res.status(400).json({ error: "Posizione non valida" });
+    if (position < 0 || position > sorted.length)
+      return res.status(400).json({ error: "Posizione non valida" });
 
-  let correct;
-  if (position === 0) {
-    correct = guessCard.isLessThan(sorted[0]);
-  } else if (position === sorted.length) {
-    correct = guessCard.isGreaterThan(sorted[sorted.length - 1]);
-  } else {
-    correct = guessCard.isBetween(sorted[position - 1], sorted[position]);
+    let correct;
+    if (position === 0) {
+      correct = guessCard.isLessThan(sorted[0]);
+    } else if (position === sorted.length) {
+      correct = guessCard.isGreaterThan(sorted[sorted.length - 1]);
+    } else {
+      correct = guessCard.isBetween(sorted[position - 1], sorted[position]);
+    }
+
+    sorted.push(guessCard);
+    sorted.sort((a, b) => a.getLuckIndex() - b.getLuckIndex());
+
+    const matchStatus = correct ? MatchStatus.WON : MatchStatus.LOST;
+
+    delete req.session.demo;
+
+    res.status(200).json({
+      correct,
+      matchStatus,
+      hand: sorted.map((c) => c.toJSON()),
+    });
   }
-
-  sorted.push(guessCard);
-  sorted.sort((a, b) => a.getLuckIndex() - b.getLuckIndex());
-
-  const matchStatus = correct ? MatchStatus.WON : MatchStatus.LOST;
-
-  delete req.session.demo;
-
-  res.status(200).json({
-    correct,
-    matchStatus,
-    hand: sorted.map((c) => c.toJSON()),
-  });
-});
+);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
