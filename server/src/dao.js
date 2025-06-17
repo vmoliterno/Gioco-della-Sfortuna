@@ -1,26 +1,41 @@
 import db from "./data/db.js";
 import { User, Match, Card, Game_card } from "./models.js";
+import crypto from "crypto";
 
 //--------------------------------------- USERS -----------------------------------------
+
 /**
- * Gets a user by their username
+ * Gets a user by their username and password
+ * This function uses scrypt for password hashing
+ * It returns a User object if the credentials are valid, or false if they are not
  * @param {string} username
- * @returns Promise<User>
+ * @param {string} password
+ * @returns Promise<User | false>
  */
-export const getUser = (username) => {
+export function getUser(username, password) {
   return new Promise((resolve, reject) => {
     const statement = "SELECT * FROM USERS WHERE username = ?";
+
     db.get(statement, [username], (err, row) => {
-      if (err) {
-        reject(err);
-      } else if (row === undefined) {
-        resolve({ error: "Utente inesistente o credenziali errate" });
-      } else {
-        resolve(new User(row.id, row.username, row.password));
-      }
+      if (err) return reject(err);
+      if (!row) return resolve(false); // user not found
+
+      crypto.scrypt(password, row.salt, 16, (err, hashedPassword) => {
+        if (err) return reject(err);
+        const isValid = crypto.timingSafeEqual(
+          Buffer.from(row.password, "hex"),
+          hashedPassword
+        );
+
+        if (!isValid) {
+          resolve(false);
+        } else {
+          resolve(new User(row.id, row.username, row.password));
+        }
+      });
     });
   });
-};
+}
 
 //---------------------------------------- MATCHES --------------------------------------
 /**
@@ -33,11 +48,8 @@ export const getMatches = (username) => {
   return new Promise((resolve, reject) => {
     const statement = `SELECT 
         MATCHES.id as match_id,
-        MATCHES.user_id,
         MATCHES.timestamp,
-        MATCHES.match_status,
-        USERS.username,
-        USERS.password
+        MATCHES.match_status    
       FROM MATCHES 
       JOIN USERS ON USERS.id = MATCHES.user_id 
       WHERE USERS.username = ?`;
@@ -45,7 +57,7 @@ export const getMatches = (username) => {
       if (err) {
         reject(err);
       } else if (rows === undefined) {
-        resolve(0);
+        resolve([]);
       } else {
         const matches = rows.map(
           (match) =>
@@ -171,7 +183,7 @@ export const getCard = (id) => {
       } else if (row === undefined) {
         resolve({ error: "Card not found" });
       } else {
-        console.log("scenario: ", row.scenario)
+        console.log("scenario: ", row.scenario);
         resolve(new Card(row.scenario, row.image, row.luck_index, row.id));
       }
     });
@@ -179,8 +191,8 @@ export const getCard = (id) => {
 };
 
 /**
- * Gets cards by their luck indexes
- * @param {Array<number>} indexes
+ * Gets cards by their ids
+ * @param {Array<number>} ids
  * @returns Promise<Array<Card>>
  */
 export const getCards = (ids) => {

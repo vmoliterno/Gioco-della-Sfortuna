@@ -12,3 +12,7 @@ export function randomIndexes(n) {
   }
   return indexes;
 }
+
+export function sortCardsByLuckIndex(cards) {
+  return cards.sort((a, b) => a.getLuckIndex() - b.getLuckIndex());
+}
