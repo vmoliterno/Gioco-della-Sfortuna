@@ -33,7 +33,7 @@ app.use(morgan("dev"));
 
 const corsOptions = {
   origin: "http://localhost:5173",
-  optionsSuccessState: 200,
+  optionsSuccessStatus: 200,
   credentials: true,
 };
 
@@ -83,7 +83,7 @@ app.use(passport.authenticate("session"));
 /* ROUTES */
 
 // POST /api/sessions
-app.post("/api/sessions", passport.authenticate("local"), (req, res) => {
+app.post("/api/v1/sessions", passport.authenticate("local"), (req, res) => {
   res.status(200).json(req.user.username);
 });
 
@@ -157,7 +157,7 @@ app.get("/api/v1/matches/start", isLoggedIn, async (req, res) => {
     status: MatchStatus.ONGOING,
     gamecards: initialCards.map((c) => ({
       cardId: c.id,
-      round: null,
+      round: 0,
       status: CardStatus.INITIAL,
     })),
   };
@@ -176,6 +176,7 @@ app.get("/api/v1/round/next", isLoggedIn, async (req, res) => {
 
   const cardId = sessionMatch.cardIds[3 + sessionMatch.round];
   const card = await dao.getCard(cardId);
+  sessionMatch.round++;
 
   res.json(card.toJSONPrivate());
 });
@@ -184,7 +185,7 @@ app.get("/api/v1/round/next", isLoggedIn, async (req, res) => {
 app.post(
   "/api/v1/round/guess",
   [
-    body("position")
+    check("position")
       .notEmpty()
       .withMessage("La posizione è obbligatoria")
       .isInt({ min: 0, max: 5 })
@@ -202,7 +203,9 @@ app.post(
         .json({ error: "Partita non inizializzata o già conclusa" });
 
     const round = match.round;
-    const cardId = match.cardIds[3 + round];
+    if (round < 0 || round > 5)
+      return res.status(400).json({ error: "Round non valido" });
+    const cardId = match.cardIds[2 + round];
     if (!cardId)
       return res
         .status(400)
@@ -218,14 +221,17 @@ app.post(
     const sorted = sortCardsByLuckIndex(ownedCards);
 
     let correct;
-    if (position < 0 || position > sorted.length) {
+    if (position > sorted.length) {
       return res.status(400).json({ error: "Posizione non valida" });
     } else if (position === 0) {
-      correct = card.isLessThan(sorted[position]);
+      correct = card.isLessThan(sorted[position].getLuckIndex());
     } else if (position === sorted.length) {
-      correct = card.isGreaterThan(sorted[position - 1]);
+      correct = card.isGreaterThan(sorted[position - 1].getLuckIndex());
     } else {
-      correct = card.isBetween(sorted[position - 1], sorted[position]);
+      correct = card.isBetween(
+        sorted[position - 1].getLuckIndex(),
+        sorted[position].getLuckIndex()
+      );
     }
 
     match.gamecards.push({
@@ -233,11 +239,11 @@ app.post(
       round: round,
       status: correct ? CardStatus.WON : CardStatus.LOST,
     });
-    match.round++;
 
     const myMatch = new Match(
       req.user.username,
       match.timestamp,
+      null,
       match.status,
       match.gamecards.map(
         (c) =>
@@ -276,6 +282,7 @@ app.get("/api/v1/demo/start", async (req, res) => {
     cardIds: ids,
     round: 0,
   };
+  console.log("Session ID:", req.sessionID, "Demo:", req.session.demo);
 
   const sorted = sortCardsByLuckIndex(initialCards).map((c) => c.toJSON());
   res.status(200).json(sorted);
@@ -292,12 +299,11 @@ app.get("/api/v1/demo/next", async (req, res) => {
   res.status(200).json(card.toJSONPrivate());
 });
 // POST /api/v1/matches/demo/guess
-import { sortCardsByLuckIndex } from "./src/utils.js";
 
 app.post(
   "/api/v1/demo/guess",
   [
-    body("position")
+    check("position")
       .notEmpty()
       .withMessage("La posizione è obbligatoria")
       .isInt({ min: 0, max: 3 })
@@ -311,20 +317,27 @@ app.post(
     if (!demo)
       return res.status(400).json({ error: "Partita demo non inizializzata" });
 
-    const guessCard = await dao.getCard(demo.guessCardId);
-    const initialCards = await dao.getCards(demo.cardIds.slice(0, 3));
-    const sorted = sortCardsByLuckIndex(initialCards);
+    const guessCard = await dao.getCard(demo.cardIds[3]);
+    if (!guessCard) return res.status(400).json({ error: "Carta non trovata" });
 
-    if (position < 0 || position > sorted.length)
-      return res.status(400).json({ error: "Posizione non valida" });
+    const initialCards = await dao.getCards(demo.cardIds.slice(0, 3));
+    if (initialCards.length !== 3)
+      return res.status(400).json({ error: "Non ci sono abbastanza carte" });
+
+    const sorted = sortCardsByLuckIndex(initialCards);
 
     let correct;
     if (position === 0) {
-      correct = guessCard.isLessThan(sorted[0]);
+      correct = guessCard.isLessThan(sorted[0].getLuckIndex());
     } else if (position === sorted.length) {
-      correct = guessCard.isGreaterThan(sorted[sorted.length - 1]);
+      correct = guessCard.isGreaterThan(
+        sorted[sorted.length - 1].getLuckIndex()
+      );
     } else {
-      correct = guessCard.isBetween(sorted[position - 1], sorted[position]);
+      correct = guessCard.isBetween(
+        sorted[position - 1].getLuckIndex(),
+        sorted[position].getLuckIndex()
+      );
     }
 
     sorted.push(guessCard);
