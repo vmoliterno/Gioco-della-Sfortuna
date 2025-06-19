@@ -1,6 +1,11 @@
 import React from "react";
 
 function GameCard({ name, index, image, hideIndex = false }) {
+  // se image è diversa da 1.png 2.png...10.png, assegnane uno random tra quelli
+  if (!image || !image.match(/^\d\.png$/)) {
+    const randomIndex = Math.floor(Math.random() * 10) + 1;
+    image = `${randomIndex}.png`;
+  }
   return (
     <div
       className="bg-pastelgreen rounded-xl w-36 h-52 shadow-lg flex flex-col justify-between overflow-visible text-black"

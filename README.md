@@ -62,10 +62,10 @@
 ## Screenshot
 
 ### Partita in corso
-![Screenshot Game](./img/game.png)
+![Screenshot Game](./readme/image.png)
 
 ### Cronologia utente
-![Screenshot History](./img/history.png)
+![Screenshot History](./readme/cronologia.png)
 
 ## Users Credentials
 
