@@ -91,7 +91,10 @@ function App() {
                   loggedIn ? <UserPage user={user} /> : <Navigate to="/login" />
                 }
               />
-              <Route path="/demo" element={<DemoPage />} />
+              <Route
+                path="/demo"
+                element={<DemoPage updateMatchInfo={setMatchInfo} />}
+              />
             </Routes>
           )}
         </div>

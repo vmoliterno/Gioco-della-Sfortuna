@@ -329,7 +329,7 @@ app.post(
     check("position")
       .notEmpty()
       .withMessage("La posizione è obbligatoria")
-      .isInt({ min: 0, max: 3 })
+      .isInt({ min: -1, max: 3 })
       .withMessage("La posizione deve essere un numero valido tra 0 e 3"),
   ],
   handleValidation,
@@ -350,7 +350,9 @@ app.post(
     const sorted = sortCardsByLuckIndex(initialCards);
 
     let correct;
-    if (position === 0) {
+    if (position === -1) {
+      correct = false;
+    } else if (position === 0) {
       correct = guessCard.isLessThan(sorted[0].getLuckIndex());
     } else if (position === sorted.length) {
       correct = guessCard.isGreaterThan(

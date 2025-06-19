@@ -11,9 +11,26 @@ function HomePage({ loggedIn }) {
 
         {/* Descrizione */}
         <p className="text-lightgray text-lg">
-          Ordina le peggiori disgrazie secondo la loro gravità. Riuscirai a
-          raccogliere 6 carte prima che la sfortuna colpisca 3 volte?
+          Ordina le peggiori disgrazie estive secondo la loro gravità. Riuscirai
+          a raccogliere 6 carte prima che la sfortuna colpisca 3 volte?
         </p>
+
+        {/* Istruzioni visibili solo se non loggato */}
+
+        <div className="text-white/80 text-sm leading-relaxed space-y-2 border-t border-white/20 pt-4">
+          <h2 className="text-pastelgreen font-semibold text-base">
+            Istruzioni del Gioco
+          </h2>
+          <p>
+            Riceverai una nuova carta a ogni turno. Dovrai inserirla nella
+            sequenza esistente ordinandola dalla meno alla più sfortunata.
+          </p>
+          <p>
+            Hai 3 vite: ogni errore ti costa una. Se sbagli 3 volte, perdi la
+            partita.
+          </p>
+          <p>Vinci se riesci a posizionare correttamente 3 carte!</p>
+        </div>
 
         {/* Azioni */}
         {loggedIn ? (
