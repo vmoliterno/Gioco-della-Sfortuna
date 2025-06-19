@@ -1,5 +1,5 @@
 import db from "./data/db.js";
-import { User, Match, Card, Game_card } from "./models.js";
+import { User, Match, Card, Game_card, MatchStatus } from "./models.js";
 import crypto from "crypto";
 
 //--------------------------------------- USERS -----------------------------------------
@@ -92,40 +92,15 @@ const getMatchById = (id) => {
 };
 
 /**
- * Saves a starded match in the database
- * TODO: decide if it is saved as ongoing or when it's finished
- * @param {Match} match
- * @returns Promise<number> - The ID of the newly created match
- */
-export const saveOngoingMatch = (match) => {
-  return new Promise((resolve, reject) => {
-    const statement =
-      "INSERT INTO MATCHES (user_id, timestamp, match_status) VALUES ((SELECT id FROM USERS WHERE username = ?), ?, ?)";
-    db.run(
-      statement,
-      [match.username, match.timestamp, match.status],
-      function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          // Match created successfully
-          resolve(this.lastID);
-
-          // solo per test
-          //resolve(getMatches(match.username));
-        }
-      }
-    );
-  });
-};
-
-/**
  * Saves a finished match in the database
  * This is used when the match is over and we want to save the result
  * @param {Match} match
  * @returns Promise<number> - The ID of the newly created match
  */
 export const saveFinishedMatch = (match) => {
+  if (match.status !== MatchStatus.WON && match.status !== MatchStatus.LOST) {
+    console.log("Match status is not valid for saving:", match.status);
+  }
   return new Promise((resolve, reject) => {
     const statement =
       "INSERT INTO MATCHES (user_id, timestamp, match_status) VALUES ((SELECT id FROM USERS WHERE username = ?), ?, ?)";
@@ -141,30 +116,6 @@ export const saveFinishedMatch = (match) => {
         }
       }
     );
-  });
-};
-
-/**
- * Only useful if we save matches as ongoing
- * Updates the match status to finished
- * @param {number} id
- * @param {string} status - "WON", "LOST", "ONGOING"
- * @returns Promise<Void>
- * @throws Error if status is not one of the valid values
- */
-export const updateMatch = (id, status) => {
-  return new Promise((resolve, reject) => {
-    if (status !== "WON" && status !== "LOST" && status !== "ONGOING")
-      reject(new Error("Invalid match status"));
-
-    const statement = "UPDATE MATCHES SET match_status = ? WHERE id = ?";
-    db.run(statement, [status, id], (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
   });
 };
 

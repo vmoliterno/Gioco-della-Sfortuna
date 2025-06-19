@@ -87,6 +87,14 @@ app.post("/api/v1/sessions", passport.authenticate("local"), (req, res) => {
   res.status(200).json(req.user.username);
 });
 
+app.get("/api/v1/sessions", (req, res) => {
+  if (req.isAuthenticated()) {
+    return res.status(200).json({ username: req.user.username });
+  } else {
+    return res.status(401).json({ error: "Utente non autenticato" });
+  }
+});
+
 // GET /api/v1/matches
 app.get(
   "/api/v1/matches",
@@ -113,16 +121,28 @@ app.get(
 app.post("/api/v1/matches/end", isLoggedIn, async (req, res) => {
   const { match } = req.session;
 
+  let savedMatch;
   if (!match || match.status === MatchStatus.ONGOING)
     return res.status(400).json({ error: "Partita non completata" });
-
-  const savedMatch = new Match(
-    req.user.username,
-    match.timestamp,
-    match.status,
-    []
+  else if (
+    match.status === MatchStatus.WON ||
+    match.status === MatchStatus.LOST
+  ) {
+    savedMatch = new Match(
+      req.user.username,
+      match.timestamp,
+      null,
+      match.status,
+      []
+    );
+    console.log("-----------------", match.status);
+  } else {
+    return res.status(400).json({ error: "Stato del match non valido" });
+  }
+  console.log(
+    "-----------------Match status before saving:",
+    savedMatch.status
   );
-
   const matchId = await dao.saveFinishedMatch(savedMatch);
 
   for (const c of match.gamecards) {
@@ -188,7 +208,7 @@ app.post(
     check("position")
       .notEmpty()
       .withMessage("La posizione è obbligatoria")
-      .isInt({ min: 0, max: 5 })
+      .isInt({ min: -1, max: 5 })
       .withMessage("La posizione deve essere un numero valido tra 0 e 5"),
   ],
   handleValidation,
@@ -227,6 +247,8 @@ app.post(
       correct = card.isLessThan(sorted[position].getLuckIndex());
     } else if (position === sorted.length) {
       correct = card.isGreaterThan(sorted[position - 1].getLuckIndex());
+    } else if (position < 0) {
+      correct = false;
     } else {
       correct = card.isBetween(
         sorted[position - 1].getLuckIndex(),
@@ -252,6 +274,7 @@ app.post(
     );
 
     match.status = myMatch.outcome();
+    console.log("------------------ Match status in guess:", match.status);
 
     res.status(200).json({
       correct: correct,

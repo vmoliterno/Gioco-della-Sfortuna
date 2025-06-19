@@ -1,29 +1,70 @@
-import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-
-function Navbar() {
-  const { user, loading } = useAuth()
-
+function Navbar({ loggedIn, matchInfo, user }) {
   return (
-    <nav className="bg-white shadow px-6 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="text-blue-600 font-semibold hover:text-blue-800">Home</Link>
+    <nav className="fixed top-0 w-full z-10 bg-gray-900/80 backdrop-blur-md border-b border-gray-700 px-6 py-4 text-white">
+      <div className="max-w-7xl mx-auto flex items-center">
+        {/* 1. Left */}
+        <div className="flex-none">
+          <a
+            href="/"
+            className="text-2xl font-normal text-pastelgreen tracking-wider"
+          >
+            Home
+          </a>
+        </div>
 
+        {/* 2. Center – sempre presente */}
+        <div className="flex-1 flex justify-center">
+          {matchInfo?.isInGame ? (
+            <div className="flex gap-4 items-center text-sm">
+              {loggedIn && (
+                <div className="flex gap-1">
+                  {Array.from({ length: matchInfo.maxLives }).map((_, i) => (
+                    <span key={i}>
+                      {i < matchInfo.currentLives ? "❤️" : "🤍"}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-1">
+                <span>🕒</span>
+                <span>{matchInfo.timeLeft}s</span>
+              </div>
+            </div>
+          ) : (
+            // placeholder invisibile per mantenere lo spazio
+            <div className="invisible flex gap-4 items-center text-sm">
+              <div className="flex gap-1">
+                {/* stesso numero di cuori massimo */}
+                {Array.from({ length: matchInfo?.maxLives || 3 }).map((_, i) => (
+                  <span key={i}>❤️</span>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <span>🕒</span>
+                <span>00s</span>
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Login/User */}
-        {!loading && (
-          <div>
-            {user ? (
-              <span className="text-gray-700">Ciao, {user.name} 👋</span>
-            ) : (
-              <Link to="/login" className="text-gray-700 hover:text-blue-600">Login</Link>
-            )}
-          </div>
-        )}
+        {/* 3. Right */}
+        <div className="flex-none">
+          {loggedIn ? (
+            <a
+              href="/user"
+              className="text-pastelgreen font-semibold hover:underline"
+            >
+              {user?.username}
+            </a>
+          ) : (
+            <a href="/login" className="text-blue-400 hover:underline">
+              Login
+            </a>
+          )}
+        </div>
       </div>
     </nav>
-  )
+  );
 }
 
-export default Navbar
+export default Navbar;

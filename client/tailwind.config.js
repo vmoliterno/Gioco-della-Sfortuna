@@ -5,7 +5,16 @@ export default {
     "./src/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        pastelgreen: '#acf2bc',
+        bloodred: '#ed1d49',
+        lightgray: '#cccccc',
+      },
+      fontFamily: {
+        display: ['"Bebas Neue"', 'sans-serif'],
+      }
+    },
   },
   plugins: [],
 }

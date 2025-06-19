@@ -1,55 +1,74 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useActionState } from "react";
 
-function LoginForm() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
+function LoginForm({ handleLogin }) {
+  const [state, formAction, isPending] = useActionState(loginFunction, {
+    username: "",
+    password: "",
+  });
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  async function loginFunction(prevState, formData) {
+    const credentials = {
+      username: formData.get("username"),
+      password: formData.get("password"),
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      await login({ username, password });
-      navigate("/");
-    } catch (err) {
-      setError(err.error || "Errore durante il login");
-    }
-  };
+    await handleLogin(credentials);
+    return { success: true };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div className="text-red-600">{error}</div>}
+    <form action={formAction} className="space-y-6">
+      {/* Stato del server */}
+      {isPending && (
+        <div className="text-yellow-600 text-sm">
+          Attendere risposta dal server...
+        </div>
+      )}
 
+      {state?.error && (
+        <div className="text-red-500 text-sm">{state.error}</div>
+      )}
+
+      {/* Username */}
       <div>
-        <label className="block text-sm font-medium">Username</label>
+        <label
+          htmlFor="username"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Username
+        </label>
         <input
           type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full mt-1 border rounded px-3 py-2"
+          name="username"
+          id="username"
           required
+          className="w-full mt-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
 
+      {/* Password */}
       <div>
-        <label className="block text-sm font-medium">Password</label>
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Password
+        </label>
         <input
           type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full mt-1 border rounded px-3 py-2"
+          name="password"
+          id="password"
           required
+          minLength={6}
+          className="w-full mt-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
 
+      {/* Submit */}
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
+        disabled={isPending}
+        className="w-full bg-blue-700 hover:bg-blue-600 text-white font-semibold py-2 rounded transition"
       >
         Accedi
       </button>

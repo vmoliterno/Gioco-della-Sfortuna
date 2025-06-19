@@ -1,88 +1,84 @@
-import { Card, Match, Game_card, User } from "../models/models.mjs";
+const API_URL = 'http://localhost:3001/api/v1';
 
-const SERVER_URL = "http://localhost:3001/api/v1";
+function httpGET(path) {
+  return fetch(`${API_URL}${path}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(handleResponse);
+}
 
-// vota una certa risposta
-// POST /api/answers/<id>/vote
-const voteUp = async (answerId) => {
-  const response = await fetch(`${SERVER_URL}/api/answers/${answerId}/vote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ vote: "up" }),
-    credentials: "include",
-  });
+function httpPOST(path, body) {
+  return fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(handleResponse);
+}
 
-  // TODO: migliorare gestione errori
-  if (!response.ok) {
-    const errMessage = await response.json();
-    throw errMessage;
-  } else return null;
+function handleResponse(response) {
+  if (response.ok) return response.json();
+  return response.json().then(err => { throw err; });
+}
+
+// AUTH
+async function login(credentials) {
+  return httpPOST('/sessions', credentials);
+}
+
+async function getUserInfo() {
+  return httpGET('/sessions');
+}
+
+// GAME MATCH (utente loggato)
+async function startMatch() {
+  return httpGET('/matches/start');
+}
+
+async function getNextRoundCard() {
+  return httpGET('/round/next');
+}
+
+async function sendGuess(position) {
+  return httpPOST('/round/guess', { position });
+}
+
+async function endMatch() {
+  return httpPOST('/matches/end', {});
+}
+
+async function getMatchHistory() {
+  return httpGET('/matches');
+}
+
+// GAME DEMO (utente anonimo)
+async function startDemo() {
+  return httpGET('/demo/start');
+}
+
+async function getNextDemoCard() {
+  return httpGET('/demo/next');
+}
+
+async function sendDemoGuess(position) {
+  return httpPOST('/demo/guess', { position });
+}
+
+// EXPORT API
+export default {
+  // Auth
+  login,
+  getUserInfo,
+
+  // Match (loggato)
+  startMatch,
+  getNextRoundCard,
+  sendGuess,
+  endMatch,
+  getMatchHistory,
+
+  // Demo (anonimo)
+  startDemo,
+  getNextDemoCard,
+  sendDemoGuess,
 };
-
-const login = async (credentials) => {
-  const response = await fetch(`${SERVER_URL}/sessions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    body: JSON.stringify(credentials),
-  });
-  if (response.ok) {
-    const user = await response.json();
-    return user;
-  } else {
-    const errDetails = await response.text();
-    throw errDetails;
-  }
-};
-
-const getUserInfo = async () => {
-  const response = await fetch(`${SERVER_URL}/sessions/current`, {
-    credentials: "include",
-  });
-  const user = await response.json();
-  if (response.ok) {
-    return user;
-  } else {
-    throw user; // an object with the error coming from the server
-  }
-};
-
-
-const getQuestions = async () => {
-  const response = await fetch(SERVER_URL + "/api/questions");
-  if (response.ok) {
-    const questionsJson = await response.json();
-    return questionsJson.map(
-      (q) => new Question(q.id, q.text, q.email, q.userId, q.date)
-    );
-  } else throw new Error("Internal server error");
-};
-
-// GET /api/v1/matches
-const getMatches = async () => {
-  const response = await fetch(SERVER_URL + "/api/v1/matches", {
-    credentials: "include",
-  });
-  if (response.ok) {
-    const matchesJson = await response.json();
-    return matchesJson; // Assuming matchesJson is an array of match objects
-  } else {
-    const errDetails = await response.text();
-    throw new Error(errDetails);
-  }
-};
-
-// POST /api/v1/matches/end
-
-// GET /api/v1/matches/start
-
-// GET /api/v1/matches/next
-
-// GET /api/v1/matches/demo/start
-
-// GET /api/v1/matches/demo/next
-
-const API = { login, getUserInfo };
-export default API;

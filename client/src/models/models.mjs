@@ -102,7 +102,7 @@ class User {
  * @property {number} id - The unique identifier for the match.
  * @property {string} username - The username of the player in the match.
  * @property {string} timestamp - The timestamp when the match was created.
- * @property {string} status - The status of the match, can be "ONGOING", "WON", or "LOST".
+ * @property {string} status - The status of the match, can be "ONGOING", "WON", or MatchStatus.LOST.
  * @property {Array<Game_card>} gamecards - The cards used in the match.
  * @method toJSON - Returns a JSON representation of the match.
  * @method outcome - Checks the current status of the match based on the gamecards.
@@ -151,7 +151,7 @@ class Match {
  * @class GAME_CARD
  * @property {Card} card - The base card associated with the game_card.
  * @property {number} round - The round number in which the card has been used.
- * @property {string} status - The status of the card, can be "INITIAL", "WON", or "LOST".
+ * @property {string} status - The status of the card, can be "INITIAL", "WON", or MatchStatus.LOST.
  * @property {number} id - The unique identifier for the card.
 
  * @method toJSON - Returns a JSON representation of the card
