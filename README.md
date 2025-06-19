@@ -1,45 +1,73 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/uNTgnFHD)
-# Exam #N: "Exam Title"
-## Student: s123456 LASTNAME FIRSTNAME 
+# Exam 1: "Gioco della Sfortuna"
+## Student: s348228 MOLITERNO VALERIA
 
 ## React Client Application Routes
 
-- Route `/`: page content and purpose
-- Route `/something/:param`: page content and purpose, param specification
-- ...
+- Route `/`: Pagina principale con introduzione al gioco. Mostra istruzioni e permette di accedere alla demo o al login.
+- Route `/login`: Pagina di login per accedere alla modalità partita registrata.
+- Route `/game`: Schermata di gioco completa (per utenti loggati). Mostra mazzo, carta attuale e mano.
+- Route `/demo`: Versione semplificata del gioco (1 turno, senza vite), accessibile a ospiti.
+- Route `/user`: Mostra la cronologia delle partite giocate dall’utente autenticato.
 
 ## API Server
 
-- POST `/api/something`
-  - request parameters and request body content
-  - response body content
-- GET `/api/something`
-  - request parameters
-  - response body content
-- POST `/api/something`
-  - request parameters and request body content
-  - response body content
-- ...
+- POST `/api/v1/sessions`
+  - Body: `{ username, password }`
+  - Ritorna l'username autenticato o errore
+- GET `/api/v1/sessions`
+  - Ritorna l'utente loggato, se presente
+- GET `/api/v1/matches/start`
+  - Avvia una nuova partita per l’utente
+  - Ritorna 3 carte iniziali ordinate
+- GET `/api/v1/round/next`
+  - Ritorna la prossima carta da provare a indovinare
+- POST `/api/v1/round/guess`
+  - Body: `{ position }` (int tra -1 e 5)
+  - _position_ = -1 si applica solo se scade il tempo
+  - Ritorna esito, mano aggiornata, status partita
+- POST `/api/v1/matches/end`
+  - Salva la partita nel database e restituisce il match salvato
+- GET `/api/v1/matches`
+  - Ritorna la cronologia delle partite dell’utente
+- GET `/api/v1/demo/start`
+  - Avvia una demo (ospite): ritorna 3 carte iniziali
+- GET `/api/v1/demo/next`
+  - Ritorna la carta da indovinare nella demo
+- POST `/api/v1/demo/guess`
+  - Body: `{ position }` (int tra -1 e 3)
+  - _position_ = -1 solo se scade il tempo
+  - Ritorna esito, mano finale, status demo
 
 ## Database Tables
 
-- Table `users` - contains xx yy zz
-- Table `something` - contains ww qq ss
-- ...
+- Table `CARDS`: contiene tutte le carte disponibili nel gioco. Ogni carta ha uno `id`, un `scenario` descrittivo, un `image` (path immagine) e un `luck_index` (indice di sfortuna, univoco).
+- Table `USERS`: utenti registrati. Ogni utente ha `id`, `username`, `password` e `salt` per la sicurezza della password.
+- Table `MATCHES`: rappresenta una partita completata. Contiene `id`, `user_id` (collegato a USERS), `timestamp` e `match_status` (`WON`, `LOST`, `ONGOING`).
+- Table `GAME_CARDS`: carte giocate in una specifica partita. Contiene `id`, `card_id`, `match_id`, `round` e `card_status` (`INITIAL`, `WON`, `LOST`), legate a `CARDS` e `MATCHES`.
+
 
 ## Main React Components
 
-- `ListOfSomething` (in `List.js`): component purpose and main functionality
-- `GreatButton` (in `GreatButton.js`): component purpose and main functionality
-- ...
-
-(only _main_ components, minor ones may be skipped)
+- `Navbar` (in `Navbar.jsx`): barra superiore con login, utente, timer e vite durante il gioco.
+- `HomePage` (in `HomePage.jsx`): schermata introduttiva con descrizione e accessi.
+- `MatchPage` (in `MatchPage.jsx`): logica completa di una partita, con gestione turni, vite e timer.
+- `DemoPage` (in `DemoPage.jsx`): logica semplificata per una partita dimostrativa (1 round, nessuna vita).
+- `UserPage` (in `UserPage.jsx`): mostra la cronologia delle partite dell’utente loggato.
+- `GameBoard` (in `GameBoard.jsx`): mostra il mazzo e la carta da inserire.
+- `Hand` (in `Hand.jsx`): visualizza la mano corrente e permette l’inserimento delle carte.
+- `GameCard` (in `GameCard.jsx`): componente grafico di una singola carta.
+- `RoundSummary` (in `RoundSummary.jsx`): mostra il risultato di un turno.
+- `MatchSummary` (in `MatchSummary.jsx`): mostra l’esito finale della partita.
 
 ## Screenshot
 
-![Screenshot](./img/screenshot.jpg)
+### Partita in corso
+![Screenshot Game](./img/game.png)
+
+### Cronologia utente
+![Screenshot History](./img/history.png)
 
 ## Users Credentials
 
-- username, password (plus any other requested info)
-- username, password (plus any other requested info)
+- `utente1`, `password1`
+- `utente2`, `password2`
